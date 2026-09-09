@@ -36,6 +36,7 @@ export default defineNuxtConfig({
     'pinia-plugin-persistedstate/nuxt',
     '@vueuse/nuxt',
     'shadcn-nuxt',
+    '@nuxtjs/supabase',
   ],
   piniaPluginPersistedstate: {
     storage: 'localStorage',
@@ -47,5 +48,15 @@ export default defineNuxtConfig({
   shadcn: {
     prefix: '',
     componentDir: '~/components/ui',
+  },
+  supabase: {
+    redirect: true,
+    redirectOptions: {
+      login: '/login',
+      callback: '/confirm',
+      include: ['/build-trip', '/my-trips'],
+      cookieRedirect: true,
+    },
+    types: '~/types/database.types.ts',
   },
 })

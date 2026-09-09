@@ -6,18 +6,141 @@
           Programs
         </p>
         <h1 class="mt-3 font-display text-4xl font-bold tracking-tight text-ink md:text-5xl">
-          Language Courses
+          {{ personalized ? `${focused.name} Courses` : 'Language Courses' }}
         </h1>
         <p class="mt-4 max-w-2xl text-lg text-muted-foreground">
-          Structured classes led by native-speaking teachers. Choose the language that opens your next horizon.
+          <template v-if="personalized && focused">
+            Tailored to your latest saved trip:
+            <strong class="text-ink">{{ latestCourseType }}</strong>
+            {{ focused.name }} preparation for
+            <strong class="text-ink">{{ latestDestinationLabel }}</strong>
+            ({{ latestDuration }} {{ latestDuration === 1 ? 'week' : 'weeks' }}).
+          </template>
+          <template v-else>
+            Structured classes led by native-speaking teachers. Choose the language that opens your next horizon —
+            or <NuxtLink :to="buildTripLink" class="font-semibold text-sea hover:underline">build your trip</NuxtLink>
+            to focus this page on one language.
+          </template>
         </p>
+        <NuxtLink
+          v-if="personalized"
+          to="/trips"
+          class="mt-8 inline-flex bg-sea px-5 py-3 font-display text-sm font-semibold text-white transition hover:bg-ink"
+        >
+          See {{ focused?.name }} trip destinations →
+        </NuxtLink>
       </div>
     </section>
 
-    <section class="mx-auto max-w-6xl px-5 py-16 md:px-8 md:py-24">
+    <!-- Personalized single-language view -->
+    <section
+      v-if="personalized && focused"
+      class="mx-auto max-w-6xl px-5 py-16 md:px-8 md:py-24"
+    >
+      <article class="grid items-start gap-10 md:grid-cols-2 md:gap-14">
+        <div class="overflow-hidden">
+          <img
+            :src="focused.image"
+            :alt="focused.alt"
+            class="aspect-[4/3] w-full object-cover"
+          >
+        </div>
+        <div>
+          <p class="font-display text-sm font-semibold uppercase tracking-[0.2em] text-sea">
+            {{ focused.level }} · {{ focused.tagline }}
+          </p>
+          <h2 class="mt-2 font-display text-3xl font-bold text-ink md:text-4xl">
+            {{ focused.name }}
+          </h2>
+          <p class="mt-4 text-lg leading-relaxed text-muted-foreground">
+            {{ focused.description }}
+          </p>
+
+          <div class="mt-8 border border-ink/10 bg-white px-5 py-5">
+            <p class="font-display text-sm font-semibold text-ink">
+              Your planned track
+            </p>
+            <ul class="mt-3 space-y-2 text-ink/85">
+              <li class="flex gap-2">
+                <span class="text-sea" aria-hidden="true">—</span>
+                Course type: <strong>{{ latestCourseType }}</strong>
+                ({{ focused.weeklyHours[latestCourseType] }})
+              </li>
+              <li class="flex gap-2">
+                <span class="text-sea" aria-hidden="true">—</span>
+                Stay length: {{ latestDuration }}
+                {{ latestDuration === 1 ? 'week' : 'weeks' }}
+              </li>
+              <li class="flex gap-2">
+                <span class="text-sea" aria-hidden="true">—</span>
+                Destination focus: {{ trip.latestSavedTrip?.destinations?.city || trip.destination?.city }}
+              </li>
+              <li class="flex gap-2">
+                <span class="text-sea" aria-hidden="true">—</span>
+                Accommodation: {{ trip.latestSavedTrip?.accommodation || trip.accommodation }}
+              </li>
+            </ul>
+          </div>
+
+          <h3 class="mt-10 font-display text-xl font-bold text-ink">
+            Program highlights
+          </h3>
+          <ul class="mt-4 space-y-2 text-ink/80">
+            <li v-for="item in focused.highlights" :key="item" class="flex gap-2">
+              <span class="text-sea" aria-hidden="true">—</span>
+              {{ item }}
+            </li>
+          </ul>
+
+          <h3 class="mt-10 font-display text-xl font-bold text-ink">
+            Modules for {{ focused.name }}
+          </h3>
+          <ul class="mt-4 space-y-2 text-ink/80">
+            <li v-for="mod in focused.modules" :key="mod" class="flex gap-2">
+              <span class="text-sea" aria-hidden="true">—</span>
+              {{ mod }}
+            </li>
+          </ul>
+
+          <h3 class="mt-10 font-display text-xl font-bold text-ink">
+            Exam pathways
+          </h3>
+          <p class="mt-3 text-muted-foreground">
+            {{ focused.exams.join(' · ') }}
+          </p>
+
+          <h3 class="mt-10 font-display text-xl font-bold text-ink">
+            Matching immersion cities
+          </h3>
+          <ul class="mt-4 flex flex-wrap gap-2">
+            <li
+              v-for="dest in matchingDestinations"
+              :key="dest.id"
+              class="border border-ink/15 bg-white px-3 py-2 font-display text-sm font-semibold text-ink"
+              :class="dest.id === highlightedDestinationId ? 'border-sea bg-sea/10 text-sea' : ''"
+            >
+              {{ dest.city }}
+            </li>
+          </ul>
+
+          <NuxtLink
+            to="/contact"
+            class="mt-10 inline-flex bg-sea px-5 py-3 font-display text-sm font-semibold text-white transition hover:bg-ink"
+          >
+            Apply for {{ focused.name }}
+          </NuxtLink>
+        </div>
+      </article>
+    </section>
+
+    <!-- Default multi-language catalog -->
+    <section
+      v-else
+      class="mx-auto max-w-6xl px-5 py-16 md:px-8 md:py-24"
+    >
       <div class="space-y-20">
         <article
-          v-for="(course, i) in courses"
+          v-for="(course, i) in DEFAULT_COURSES"
           :key="course.slug"
           class="grid items-center gap-8 md:grid-cols-2 md:gap-14"
           :class="i % 2 === 1 ? 'md:[&>*:first-child]:order-2' : ''"
@@ -59,48 +182,49 @@
 </template>
 
 <script setup>
+import {
+  COURSES_BY_LANGUAGE,
+  DEFAULT_COURSES,
+  DESTINATIONS_BY_LANGUAGE,
+} from '~/data/tripCatalog'
+
 useHead({ title: 'Language Courses — Horizons' })
 
-const courses = [
-  {
-    slug: 'english',
-    name: 'English',
-    level: 'A1 → C1',
-    description:
-      'From everyday conversation to academic writing. Prepare for international studies, internships, and travel with confidence.',
-    highlights: ['Conversation & pronunciation labs', 'Business English option', 'IELTS / TOEFL prep available'],
-    image: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=1200&q=80',
-    alt: 'English language classroom',
-  },
-  {
-    slug: 'spanish',
-    name: 'Spanish',
-    level: 'A1 → C1',
-    description:
-      'Discover the rhythms of Spanish through interactive lessons, cultural workshops, and real-world speaking practice.',
-    highlights: ['Latin American & European variants', 'Culture & cinema workshops', 'Small group classes'],
-    image: 'https://images.unsplash.com/photo-1583422409516-2895a77efded?auto=format&fit=crop&w=1200&q=80',
-    alt: 'Barcelona city view with Sagrada Familia',
-  },
-  {
-    slug: 'french',
-    name: 'French',
-    level: 'A1 → C1',
-    description:
-      'Master French grammar and nuance with teachers who guide you from first phrases to fluent discussion.',
-    highlights: ['DELF / DALF preparation', 'Literature & media modules', 'Conversation clubs'],
-    image: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1200&q=80',
-    alt: 'Parisian street scene for French learning',
-  },
-  {
-    slug: 'german',
-    name: 'German',
-    level: 'A1 → C1',
-    description:
-      'Build solid foundations in German — ideal for studies, careers in Europe, and your stay in Berlin.',
-    highlights: ['Clear structure & grammar track', 'Professional German option', 'Goethe-Institut exam prep'],
-    image: 'https://images.unsplash.com/photo-1467269204594-9661b134dd2b?auto=format&fit=crop&w=1200&q=80',
-    alt: 'German city architecture',
-  },
-]
+const trip = useTripBuilderStore()
+const user = useUserStore()
+
+const personalized = computed(() => user.isConnected && trip.hasSavedTrip)
+const buildTripLink = computed(() => user.isConnected ? '/build-trip' : '/login?redirect=/build-trip')
+
+const focusLanguage = computed(() =>
+  trip.latestSavedTrip?.destinations?.language || trip.language || '',
+)
+
+const latestCourseType = computed(() =>
+  trip.latestSavedTrip?.course_type || trip.courseType || '',
+)
+
+const latestDuration = computed(() =>
+  trip.latestSavedTrip?.duration || trip.durationWeeks || 0,
+)
+
+const latestDestinationLabel = computed(() => {
+  const dest = trip.latestSavedTrip?.destinations
+  if (dest) return `${dest.city}, ${dest.country}`
+  return trip.destination?.label || ''
+})
+
+const highlightedDestinationId = computed(() =>
+  trip.latestSavedTrip?.destination_id || trip.destinationId || '',
+)
+
+const focused = computed(() => {
+  if (!personalized.value || !focusLanguage.value) return null
+  return COURSES_BY_LANGUAGE[focusLanguage.value]
+})
+
+const matchingDestinations = computed(() => {
+  if (!focusLanguage.value) return []
+  return DESTINATIONS_BY_LANGUAGE[focusLanguage.value]
+})
 </script>

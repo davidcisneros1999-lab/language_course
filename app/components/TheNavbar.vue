@@ -30,7 +30,7 @@
         class="absolute left-0 right-0 top-full flex-col gap-1 border-b border-ink/10 bg-background px-5 py-4 md:static md:flex md:flex-row md:items-center md:gap-8 md:border-0 md:bg-transparent md:p-0"
         :class="open ? 'flex' : 'hidden md:flex'"
       >
-        <li v-for="link in links" :key="link.to">
+        <li v-for="link in links" :key="link.label">
           <NuxtLink
             :to="link.to"
             class="block py-2 font-display text-sm font-semibold text-ink/75 transition hover:text-sea md:py-0"
@@ -42,10 +42,10 @@
         </li>
         <li class="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
           <span
-            v-if="user.isConnected"
+            v-if="user.isConnected && user.displayName"
             class="font-display text-sm font-semibold text-sea"
           >
-            Hello, {{ user.firstName }}
+            Hello, {{ user.displayName }}
           </span>
           <NuxtLink
             to="/login"
@@ -69,11 +69,13 @@ watch(() => route.path, () => {
   open.value = false
 })
 
-const links = [
+const links = computed(() => [
   { to: '/', label: 'Home' },
   { to: '/courses', label: 'Language Courses' },
   { to: '/trips', label: 'Language Trips' },
+  { to: user.isConnected ? '/build-trip' : '/login?redirect=/build-trip', label: 'Build Your Trip' },
+  ...(user.isConnected ? [{ to: '/my-trips', label: 'My Trips' }] : []),
   { to: '/about', label: 'About Us' },
   { to: '/contact', label: 'Contact' },
-]
+])
 </script>

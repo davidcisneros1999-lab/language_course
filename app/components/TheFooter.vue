@@ -10,6 +10,8 @@
       <div class="flex flex-wrap gap-x-6 gap-y-2 font-display text-sm font-semibold">
         <NuxtLink to="/courses" class="transition hover:text-white">Courses</NuxtLink>
         <NuxtLink to="/trips" class="transition hover:text-white">Trips</NuxtLink>
+        <NuxtLink :to="buildTripLink" class="transition hover:text-white">Build trip</NuxtLink>
+        <NuxtLink v-if="user.isConnected" to="/my-trips" class="transition hover:text-white">My Trips</NuxtLink>
         <NuxtLink to="/about" class="transition hover:text-white">About</NuxtLink>
         <NuxtLink to="/contact" class="transition hover:text-white">Contact</NuxtLink>
         <NuxtLink to="/login" class="transition hover:text-white">Log in</NuxtLink>
@@ -23,4 +25,6 @@
 
 <script setup>
 const year = new Date().getFullYear()
+const user = useUserStore()
+const buildTripLink = computed(() => user.isConnected ? '/build-trip' : '/login?redirect=/build-trip')
 </script>

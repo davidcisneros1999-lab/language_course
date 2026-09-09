@@ -14,17 +14,20 @@
           Horizons
         </p>
         <h1 class="animate-fade-up delay-1 mt-4 max-w-3xl font-display text-4xl font-bold leading-[1.05] tracking-tight md:text-6xl lg:text-7xl">
-          <template v-if="user.isConnected">
-            {{ user.firstName }}, speak the world.
+          <template v-if="user.isConnected && user.displayName">
+            Hello, {{ user.displayName }}!<br>Speak the world.
           </template>
           <template v-else>
             Speak the world.<br>Live the language.
           </template>
         </h1>
         <p class="animate-fade-up delay-2 mt-5 max-w-xl text-lg text-white/85 md:text-xl">
-          <template v-if="user.isConnected">
-            Your preference <strong>{{ user.preferredLanguage }}</strong> comes from the Pinia store —
-            explore programs that match it.
+          <template v-if="user.isConnected && trip.hasSavedTrip">
+            Your trip is set for <strong>{{ trip.language }}</strong> in
+            <strong>{{ trip.destination?.city }}</strong> — explore matching programs.
+          </template>
+          <template v-else-if="user.isConnected">
+            You can now build a personalized stay and unlock language-specific trip ideas.
           </template>
           <template v-else>
             Language courses at home — linguistic stays in London, Madrid, Paris &amp; Berlin.
@@ -37,6 +40,12 @@
           >
             Discover our programs
             <span aria-hidden="true">→</span>
+          </NuxtLink>
+          <NuxtLink
+            :to="user.isConnected ? '/build-trip' : '/login?redirect=/build-trip'"
+            class="inline-flex items-center gap-2 border border-white/50 px-6 py-3.5 font-display text-base font-semibold text-white transition hover:bg-white hover:text-ink"
+          >
+            Build your trip
           </NuxtLink>
           <NuxtLink
             v-if="!user.isConnected"
@@ -101,4 +110,5 @@ useHead({
 })
 
 const user = useUserStore()
+const trip = useTripBuilderStore()
 </script>
