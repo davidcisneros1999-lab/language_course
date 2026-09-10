@@ -1,6 +1,6 @@
 -- Relational schema for Horizons
 -- Inspected existing project:
---   - public.user_profiles exists (legacy, trip fields mixed in)
+--   - public.user_profiles was legacy (now unused)
 --   - public.destinations exists but empty
 --   - public.trips exists but empty
 --   - public.profiles does NOT exist yet
@@ -34,14 +34,13 @@ create policy "Users can update own profile"
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
--- Copy existing users from legacy user_profiles / auth.users
+-- Copy existing auth users into profiles (no dependency on legacy user_profiles)
 insert into public.profiles (user_id, email, firstname)
 select
-  coalesce(up.id, au.id),
-  coalesce(up.email, au.email),
-  up.firstname
+  au.id,
+  au.email,
+  coalesce(au.raw_user_meta_data->>'firstname', null)
 from auth.users au
-left join public.user_profiles up on up.id = au.id
 on conflict (user_id) do update
   set email = excluded.email,
       firstname = coalesce(excluded.firstname, public.profiles.firstname),

@@ -59,4 +59,12 @@ export default defineNuxtConfig({
     },
     types: '~/types/database.types.ts',
   },
+  runtimeConfig: {
+    // Private / server-only — NOT under `public`, so the browser never gets this.
+    // Overridden by TRIP_PRICING_SECRET from .env (see also NUXT_TRIP_PRICING_SECRET).
+    tripPricingSecret: process.env.TRIP_PRICING_SECRET || '',
+    public: {
+      // Keep public keys here only (Supabase public vars stay managed by @nuxtjs/supabase).
+    },
+  },
 })

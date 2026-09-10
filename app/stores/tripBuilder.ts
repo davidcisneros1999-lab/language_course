@@ -29,11 +29,28 @@ export const useTripBuilderStore = defineStore(
 
     const availableDestinations = computed(() => {
       if (!language.value) return []
+
+      const { destinationsByLanguage } = useDestinations()
+      const fromDb = destinationsByLanguage(language.value)
+
+      if (fromDb.length) {
+        return fromDb.map(d => ({
+          id: d.destination_id,
+          city: d.city,
+          country: d.country,
+          label: `${d.city}, ${d.country}`,
+          description: d.description || '',
+          image: d.image || '',
+        }))
+      }
+
       return DESTINATIONS_BY_LANGUAGE[language.value]
     })
 
     const destination = computed(() =>
-      findDestination(language.value, destinationId.value),
+      findDestination(language.value, destinationId.value)
+      || availableDestinations.value.find(d => d.id === destinationId.value)
+      || null,
     )
 
     const coursePrice = computed(() => {
@@ -97,7 +114,7 @@ export const useTripBuilderStore = defineStore(
         activities.value = [...activities.value, id]
       }
       else {
-        activities.value = activities.value.filter(a => a !== id)
+        activities.value = activities.value.filter(a => a.id !== id)
       }
       savedAt.value = null
       lastSavedTripId.value = null
@@ -125,77 +142,34 @@ export const useTripBuilderStore = defineStore(
       return data.user
     }
 
-    /** Resolve destination_id from destinations table (never insert a duplicate city) */
+    /** Resolve destination_id via useDestinations (never insert a duplicate city) */
     async function resolveDestinationId(catalogDestinationId: string) {
-      const supabase = useSupabaseClient()
-      const { data, error } = await supabase
-        .from('destinations')
-        .select('destination_id')
-        .eq('destination_id', catalogDestinationId)
-        .maybeSingle()
+      const { destinations, fetchDestinations, findDestinationById } = useDestinations()
 
-      if (error) throw error
-      if (!data?.destination_id) {
+      if (!destinations.value.length) {
+        await fetchDestinations()
+      }
+
+      const found = findDestinationById(catalogDestinationId)
+      if (!found?.destination_id) {
         throw new Error(`Destination "${catalogDestinationId}" was not found in destinations. Run relational_schema.sql.`)
       }
-      return data.destination_id as string
+      return found.destination_id
     }
 
+    /** Delegates to useTrips composable, then mirrors into this store */
     async function fetchMyTrips(sortByPrice: 'asc' | 'desc' | 'newest' = 'newest') {
-      const supabase = useSupabaseClient()
-      const authUser = await getAuthUser()
-      if (!authUser) {
-        savedTrips.value = []
-        return []
-      }
+      const { trips, fetchTrips, error } = useTrips()
 
       isSyncing.value = true
       syncError.value = ''
 
-      let query = supabase
-        .from('trips')
-        .select(`
-          trip_id,
-          user_id,
-          destination_id,
-          duration,
-          course_type,
-          accommodation,
-          activities,
-          total_price,
-          created_at,
-          destinations (
-            destination_id,
-            city,
-            country,
-            language,
-            description,
-            image
-          )
-        `)
-        .eq('user_id', authUser.id)
+      const data = await fetchTrips(sortByPrice)
 
-      if (sortByPrice === 'asc') {
-        query = query.order('total_price', { ascending: true })
-      }
-      else if (sortByPrice === 'desc') {
-        query = query.order('total_price', { ascending: false })
-      }
-      else {
-        query = query.order('created_at', { ascending: false })
-      }
-
-      const { data, error } = await query
-
+      savedTrips.value = data
+      syncError.value = error.value
       isSyncing.value = false
 
-      if (error) {
-        syncError.value = error.message
-        savedTrips.value = []
-        return []
-      }
-
-      savedTrips.value = (data || []) as SavedTripRow[]
       return savedTrips.value
     }
 
@@ -203,6 +177,29 @@ export const useTripBuilderStore = defineStore(
       const trips = await fetchMyTrips('newest')
       if (!trips.length) return false
       return applyLatestTripToForm(trips[0])
+    }
+
+    /** Ask the Nuxt server API for the authoritative total (falls back to client calc) */
+    async function calculateServerPrice() {
+      if (!durationWeeks.value || !courseType.value || !accommodation.value) {
+        return totalPrice.value
+      }
+
+      try {
+        const result = await $fetch<{ total: number }>('/api/calculate-price', {
+          method: 'POST',
+          body: {
+            duration: durationWeeks.value,
+            courseType: courseType.value,
+            accommodation: accommodation.value,
+            activities: activities.value,
+          },
+        })
+        return result.total
+      }
+      catch {
+        return totalPrice.value
+      }
     }
 
     async function saveTrip() {
@@ -228,7 +225,10 @@ export const useTripBuilderStore = defineStore(
         // 2) destination_id from destinations table (reuse existing row)
         const resolvedDestinationId = await resolveDestinationId(destinationId.value)
 
-        // 3) INSERT a NEW trip row (never overwrite previous trips)
+        // 3) total from server API (same rates; no secrets)
+        const serverTotal = await calculateServerPrice()
+
+        // 4) INSERT a NEW trip row (never overwrite previous trips)
         const { data, error } = await supabase
           .from('trips')
           .insert({
@@ -238,7 +238,7 @@ export const useTripBuilderStore = defineStore(
             course_type: courseType.value,
             accommodation: accommodation.value,
             activities: activities.value,
-            total_price: totalPrice.value,
+            total_price: serverTotal,
           })
           .select('trip_id, created_at')
           .single()
@@ -276,6 +276,7 @@ export const useTripBuilderStore = defineStore(
 
     function clearSavedTrips() {
       savedTrips.value = []
+      useTrips().clearTrips()
     }
 
     return {

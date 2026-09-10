@@ -100,6 +100,12 @@
                 {{ dest.label }}
               </button>
             </div>
+            <p
+              v-if="destinationsError"
+              class="mt-3 text-sm text-destructive"
+            >
+              {{ destinationsError }}
+            </p>
           </fieldset>
 
           <fieldset>
@@ -336,6 +342,7 @@ useHead({ title: 'Build Your Language Trip — Horizons' })
 
 const trip = useTripBuilderStore()
 const user = useUserStore()
+const { fetchDestinations, error: destinationsError } = useDestinations()
 
 const saveAttempted = ref(false)
 const justSaved = ref(false)
@@ -348,6 +355,7 @@ const selectedActivityLabels = computed(() =>
 
 onMounted(async () => {
   if (!user.isConnected || !user.id) return
+  await fetchDestinations()
   await trip.loadFromDatabase()
 })
 
@@ -355,6 +363,7 @@ watch(
   () => user.id,
   async (id) => {
     if (!id) return
+    await fetchDestinations()
     await trip.loadFromDatabase()
   },
 )
